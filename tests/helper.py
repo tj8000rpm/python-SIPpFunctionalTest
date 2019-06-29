@@ -235,7 +235,7 @@ class TestSIPp(unittest.TestCase):
         self.assertIn('-m 1 ', command)
 
     def test_helper_run_a_sipp_m_options(self):
-        ret, command = SIPp.helper_run_a_sipp(count=100)
+        ret, command = SIPp.helper_run_a_sipp(count=20)
         self.assertRegex(command, r'^sipp')
         self.assertRegex(command, 'localhost')
         self.assertNotIn('-sf ', command)
@@ -244,9 +244,9 @@ class TestSIPp(unittest.TestCase):
         self.assertNotIn('-d ', command)
         self.assertNotIn('-trace_msg ', command)
         self.assertNotIn('-message_file ', command)
-        self.assertIn('-m 100 ', command)
+        self.assertIn('-m 20 ', command)
 
-    def test_helper_run_a_sipp_m_options(self):
+    def test_helper_run_a_sipp_timeout(self):
         ret, command = SIPp.helper_run_a_sipp(timeout_s=0.000001)
         self.assertEqual(ret.returncode, 124)
 
@@ -339,15 +339,6 @@ class TestSIPpMessage(unittest.TestCase):
         self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('to')[0])
         self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('tO')[0])
         self.assertEqual('SIP/2.0/UDP server10.biloxi.com;branch=z9hG4bK4b43c2ff8.1;received=192.0.2.3', self.msg.getHeaderValues('Via')[0])
-
-        self.assertEqual('SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8;received=192.0.2.1', self.msg.getHeaderValues('Via')[2])
-
-    def test_getHeaderValues(self):
-        self.setResponseMessage(self.msg)
-        self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('To')[0])
-        self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('to')[0])
-        self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('tO')[0])
-        self.assertEqual('SIP/2.0/UDP server10.biloxi.com;branch=z9hG4bK4b43c2ff8.1;received=192.0.2.3', self.msg.getHeaderValues('Via')[0])
         self.assertEqual('SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8;received=192.0.2.1', self.msg.getHeaderValues('Via')[2])
 
     def test_messagesFilter(self):
@@ -389,3 +380,9 @@ class TestSIPpMessage(unittest.TestCase):
         new_messages = SIPpMessage.messagesFilter(messages, status_code=180)
         self.assertEqual(len(new_messages), 0)
 
+    def test_as_str(self):
+        self.setRequestMessage(self.msg)
+        dump = str(self.msg)
+
+        for line in dump.strip().split('\n')[1:]:
+            self.assertEqual(line[0], '<')
