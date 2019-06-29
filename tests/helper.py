@@ -15,7 +15,7 @@ class SIPp():
         request_service = kwargs.get('request_service', None)
         duration_msec = kwargs.get('duration_msec', None)
         logfile_path = kwargs.get('logfile_path', None)
-        injection_file_path = kwargs.get('injection_file_path', None)
+        injection_file = kwargs.get('injection_file', None)
         count = kwargs.get('count', 1)
 
         # create sipp command line
@@ -23,9 +23,9 @@ class SIPp():
         if scenario_file:
             command.append('-sf')
             command.append(str(scenario_file))
-        if injection_file_path:
+        if injection_file:
             command.append('-inf')
-            command.append(str(injection_file_path))
+            command.append(str(injection_file))
         if request_service:
             command.append('-s')
             command.append(str(request_service))
@@ -161,6 +161,95 @@ class SIPpMessage():
                 newmessages.append(msg)
         return newmessages
 
+class TestSIPp(unittest.TestCase):
+    def test_helper_run_a_sipp_no_options(self):
+        ret, command = SIPp.helper_run_a_sipp()
+        self.assertRegex(command, r'^sipp')
+        self.assertRegex(command, 'localhost')
+        self.assertNotIn('-sf ', command)
+        self.assertNotIn('-inf ', command)
+        self.assertNotIn('-s ', command)
+        self.assertNotIn('-d ', command)
+        self.assertNotIn('-trace_msg ', command)
+        self.assertNotIn('-message_file ', command)
+        self.assertIn('-m 1 ', command)
+
+    def test_helper_run_a_sipp_sf_options(self):
+        ret, command = SIPp.helper_run_a_sipp(scenario_file='/dev/null')
+        self.assertRegex(command, r'^sipp')
+        self.assertRegex(command, 'localhost')
+        self.assertIn('-sf /dev/null', command)
+        self.assertNotIn('-inf ', command)
+        self.assertNotIn('-s ', command)
+        self.assertNotIn('-d ', command)
+        self.assertNotIn('-trace_msg ', command)
+        self.assertNotIn('-message_file ', command)
+        self.assertIn('-m 1 ', command)
+
+    def test_helper_run_a_sipp_inf_options(self):
+        ret, command = SIPp.helper_run_a_sipp(injection_file='/dev/null')
+        self.assertRegex(command, r'^sipp')
+        self.assertRegex(command, 'localhost')
+        self.assertNotIn('-sf ', command)
+        self.assertIn('-inf /dev/null', command)
+        self.assertNotIn('-s ', command)
+        self.assertNotIn('-d ', command)
+        self.assertNotIn('-trace_msg ', command)
+        self.assertNotIn('-message_file ', command)
+        self.assertIn('-m 1 ', command)
+
+    def test_helper_run_a_sipp_s_options(self):
+        ret, command = SIPp.helper_run_a_sipp(request_service='service')
+        self.assertRegex(command, r'^sipp')
+        self.assertRegex(command, 'localhost')
+        self.assertNotIn('-sf ', command)
+        self.assertNotIn('-inf ', command)
+        self.assertIn('-s service ', command)
+        self.assertNotIn('-d ', command)
+        self.assertNotIn('-trace_msg ', command)
+        self.assertNotIn('-message_file ', command)
+        self.assertIn('-m 1 ', command)
+
+    def test_helper_run_a_sipp_d_options(self):
+        ret, command = SIPp.helper_run_a_sipp(duration_msec=10)
+        self.assertRegex(command, r'^sipp')
+        self.assertRegex(command, 'localhost')
+        self.assertNotIn('-sf ', command)
+        self.assertNotIn('-inf ', command)
+        self.assertNotIn('-s ', command)
+        self.assertIn('-d 10', command)
+        self.assertNotIn('-trace_msg ', command)
+        self.assertNotIn('-message_file ', command)
+        self.assertIn('-m 1 ', command)
+
+    def test_helper_run_a_sipp_message_file_options(self):
+        ret, command = SIPp.helper_run_a_sipp(logfile_path='/dev/null')
+        self.assertRegex(command, r'^sipp')
+        self.assertRegex(command, 'localhost')
+        self.assertNotIn('-sf ', command)
+        self.assertNotIn('-inf ', command)
+        self.assertNotIn('-s ', command)
+        self.assertNotIn('-d ', command)
+        self.assertIn('-trace_msg ', command)
+        self.assertIn('-message_file /dev/null ', command)
+        self.assertIn('-m 1 ', command)
+
+    def test_helper_run_a_sipp_m_options(self):
+        ret, command = SIPp.helper_run_a_sipp(count=100)
+        self.assertRegex(command, r'^sipp')
+        self.assertRegex(command, 'localhost')
+        self.assertNotIn('-sf ', command)
+        self.assertNotIn('-inf ', command)
+        self.assertNotIn('-s ', command)
+        self.assertNotIn('-d ', command)
+        self.assertNotIn('-trace_msg ', command)
+        self.assertNotIn('-message_file ', command)
+        self.assertIn('-m 100 ', command)
+
+    def test_helper_run_a_sipp_m_options(self):
+        ret, command = SIPp.helper_run_a_sipp(timeout_s=0.000001)
+        self.assertEqual(ret.returncode, 124)
+
 class TestSIPpMessage(unittest.TestCase):
     def createNewMsg(self):
         msg = SIPpMessage()
@@ -259,10 +348,7 @@ class TestSIPpMessage(unittest.TestCase):
         self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('to')[0])
         self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('tO')[0])
         self.assertEqual('SIP/2.0/UDP server10.biloxi.com;branch=z9hG4bK4b43c2ff8.1;received=192.0.2.3', self.msg.getHeaderValues('Via')[0])
-
         self.assertEqual('SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8;received=192.0.2.1', self.msg.getHeaderValues('Via')[2])
-
-
 
     def test_messagesFilter(self):
         msg1 = self.createNewMsg()
