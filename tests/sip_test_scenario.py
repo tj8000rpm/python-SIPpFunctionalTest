@@ -171,8 +171,9 @@ class Test_sipp(unittest.TestCase):
         self.logfile = '{}/logs/sip_msg_{}.log'.format(os.getcwd(), inspect.currentframe().f_code.co_name)
 
         # run a sipp scenario
-        ret, command = self.helper_run_sipp(timeout_s=5, scenario_file='uac-uas.xml', request_service='0366789012',
-                                       duration_ms=int(0.5 * 1000), logfile_path=self.logfile)
+        ret, command = self.helper_run_sipp(timeout_s=5, scenario_file='tests/scenarios/uac-uas.xml',
+                                       request_service='0312341234', duration_ms=int(0.5 * 1000),
+                                       logfile_path=self.logfile)
 
         # check sipp return code
         self.assertNotEqual(ret.returncode, 124, 'the program has time out.')
@@ -187,8 +188,9 @@ class Test_sipp(unittest.TestCase):
         self.logfile = '{}/logs/sip_msg_{}.log'.format(os.getcwd(), inspect.currentframe().f_code.co_name)
 
         # run a sipp scenario
-        ret, command = self.helper_run_sipp(timeout_s=5, scenario_file='uac-uas.xml', request_service='0366789012',
-                                       duration_ms=int(0 * 1000), logfile_path=self.logfile)
+        ret, command = self.helper_run_sipp(timeout_s=5, scenario_file='tests/scenarios/uac-uas.xml',
+                                       request_service='0312341234', duration_ms=int(0.5 * 1000),
+                                       logfile_path=self.logfile)
 
         # check sipp return code
         self.assertNotEqual(ret.returncode, 124, 'the program has time out.')
@@ -209,8 +211,9 @@ class Test_sipp(unittest.TestCase):
         self.logfile = '{}/logs/sip_msg_{}.log'.format(os.getcwd(), inspect.currentframe().f_code.co_name)
 
         # run a sipp scenario
-        ret, command = self.helper_run_sipp(timeout_s=5, scenario_file='uac-uas.xml', request_service='0366789012',
-                                       duration_ms=int(0 * 1000), logfile_path=self.logfile)
+        ret, command = self.helper_run_sipp(timeout_s=5, scenario_file='tests/scenarios/uac-uas.xml',
+                                       request_service='0312341234', duration_ms=int(0.5 * 1000),
+                                       logfile_path=self.logfile)
 
         # check sipp return code
         self.assertNotEqual(ret.returncode, 124, 'the program has time out.')
