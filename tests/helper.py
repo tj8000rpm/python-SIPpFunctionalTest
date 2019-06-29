@@ -6,7 +6,8 @@ from datetime import datetime
 class SIPp():
 
     @staticmethod
-    def helper_run_a_sipp(timeout_s, scenario_file, request_service, duration_ms, logfile_path):
+    def helper_run_a_sipp(timeout_s=10, remote_host='localhost', scenario_file=None,
+                          request_service='service', duration_ms=0, logfile_path='./logs'):
         # create sipp command line
         command = ('sipp '
                    '-m 1 '
@@ -15,12 +16,14 @@ class SIPp():
                    '-d {} '
                    '-trace_msg '
                    '-message_file {} '
-                   'localhost').format(scenario_file, request_service, duration_ms, logfile_path)
+                   '{}').format(scenario_file, request_service, duration_ms, logfile_path, remote_host)
         # append in front timeout command
         runnable = ['timeout', str(timeout_s)] + command.split(' ')
 
-        # execute sipp program
+        # execute sipp program with headless mode
         ret = subprocess.run(runnable, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # return value of subprocess results and executed command line
         return ret, command
 
 class SIPpMessage():
@@ -50,7 +53,7 @@ class SIPpMessage():
         request_line = self.message.split('\n')[0]
         return request_line.split(' ')[1]
 
-    def getHeader(self, header_name):
+    def getHeaderValues(self, header_name):
         header_values=[]
         renew_msg = ''
         for line in self.message.split('\n'):
