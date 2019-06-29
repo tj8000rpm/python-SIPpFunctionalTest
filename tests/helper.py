@@ -1,30 +1,54 @@
 #!/usr/bin/python3
 import re
 import subprocess
+import csv
+import unittest
 from datetime import datetime
 
 class SIPp():
 
     @staticmethod
-    def helper_run_a_sipp(timeout_s=10, remote_host='localhost', scenario_file=None,
-                          request_service='service', duration_ms=0, logfile_path='./logs'):
+    def helper_run_a_sipp(**kwargs):
+        timeout_s = kwargs.get('timeout_s', 10)
+        remote_host = kwargs.get('remote_host', 'localhost')
+        scenario_file = kwargs.get('scenario_file', None)
+        request_service = kwargs.get('request_service', None)
+        duration_msec = kwargs.get('duration_msec', None)
+        logfile_path = kwargs.get('logfile_path', None)
+        injection_file_path = kwargs.get('injection_file_path', None)
+        count = kwargs.get('count', 1)
+
         # create sipp command line
-        command = ('sipp '
-                   '-m 1 '
-                   '-sf {} '
-                   '-s {} '
-                   '-d {} '
-                   '-trace_msg '
-                   '-message_file {} '
-                   '{}').format(scenario_file, request_service, duration_ms, logfile_path, remote_host)
+        command = ['sipp']
+        if scenario_file:
+            command.append('-sf')
+            command.append(str(scenario_file))
+        if injection_file_path:
+            command.append('-inf')
+            command.append(str(injection_file_path))
+        if request_service:
+            command.append('-s')
+            command.append(str(request_service))
+        if duration_msec:
+            command.append('-d')
+            command.append(str(duration_msec))
+        if logfile_path:
+            command.append('-trace_msg')
+            command.append('-message_file')
+            command.append(str(logfile_path))
+        if count:
+            command.append('-m')
+            command.append(str(count))
+        command.append(str(remote_host))
+
         # append in front timeout command
-        runnable = ['timeout', str(timeout_s)] + command.split(' ')
+        runnable = ['timeout', str(timeout_s)] + command
 
         # execute sipp program with headless mode
         ret = subprocess.run(runnable, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # return value of subprocess results and executed command line
-        return ret, command
+        return ret, " ".join(command)
 
 class SIPpMessage():
     message = ''
@@ -34,7 +58,7 @@ class SIPpMessage():
     length = 0
 
     def getStatusCode(self):
-        status_line = self.message.split('\n')[0]
+        status_line = self.message.split('\n')[0].strip()
         try:
             return int(status_line.split(' ')[1])
         except ValueError:
@@ -42,30 +66,30 @@ class SIPpMessage():
         return None
 
     def getStatusPhrease(self):
-        status_line = self.message.split('\n')[0]
+        status_line = self.message.split('\n')[0].strip()
         return " ".join(status_line.split(' ')[2:])
 
     def getMethod(self):
-        request_line = self.message.split('\n')[0]
+        request_line = self.message.split('\n')[0].strip()
         return request_line.split(' ')[0]
 
     def getRequstURI(self):
-        request_line = self.message.split('\n')[0]
+        request_line = self.message.split('\n')[0].strip()
         return request_line.split(' ')[1]
 
     def getHeaderValues(self, header_name):
         header_values=[]
+
+        temp=[]
         renew_msg = ''
         for line in self.message.split('\n'):
             if line.strip() == '':
                 break
-            renew_msg += line.strip()
             if line[0] == ' ' or line[0] == '\t':
-                continue
-            renew_msg += '\n'
+                renew_msg=renew_msg.rstrip()
+            renew_msg+=line.strip()+'\r\n'
 
         renew_msg = renew_msg.strip()
-
         for line in renew_msg.split('\n'):
             kv = line.split(':', 1)
             kv.append('')
@@ -80,13 +104,12 @@ class SIPpMessage():
 
     def __str__(self):
         msg=''
-        allow = '<'
+        arrow = '<'
         if self.direction == 'sent':
-            allow = '>'
+            arrow = '>'
         msg += '-- {}\n'.format(self.datetime)
         for line in self.message.split('\n'):
-            msg+='{} {}\n'.format(allow, line)
-
+            msg+='{} {}\n'.format(arrow, line)
         return msg
 
     @staticmethod
@@ -130,6 +153,7 @@ class SIPpMessage():
 
     @staticmethod
     def messagesFilter(messages, direction=None, method=None, status_code=None):
+        newmessages=[]
         for msg in messages:
             if direction != None and msg.direction == direction or \
                method != None and msg.getMethod() == method or \
@@ -137,27 +161,145 @@ class SIPpMessage():
                 newmessages.append(msg)
         return newmessages
 
-    @staticmethod
-    def filterByDirection(messages, direction):
-        newmessages=[]
-        for msg in messages:
-            if msg.direction == direction:
-                newmessages.append(msg)
-        return newmessages
+class TestSIPpMessage(unittest.TestCase):
+    def createNewMsg(self):
+        msg = SIPpMessage()
+        msg.datetime = datetime.now()
+        msg.protocol = 'UDP'
+        msg.direction = 'received'
+        return msg
 
-    @staticmethod
-    def filterByMethod(messages, method):
-        newmessages=[]
-        for msg in messages:
-            if msg.getMethod() == method:
-                newmessages.append(msg)
-        return newmessages
+    def setUp(self):
+        self.msg = self.createNewMsg()
 
-    @staticmethod
-    def filterByStatusCode(messages, status_code):
-        newmessages=[]
-        for msg in messages:
-            if msg.getStatusCode() == status_code:
-                newmessages.append(msg)
-        return newmessages
+    def setRequestMessage(self, msg):
+        msg.message = ( 'INVITE sip:bob@biloxi.com SIP/2.0\r\n'
+                         'Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8\r\n'
+                         'To: Bob <bob@biloxi.com>\r\n'
+                         'From: Alice <alice@atlanta.com>;tag=1928301774\r\n'
+                         'Call-ID: a84b4c76e66710\r\n'
+                         'CSeq: 314159 INVITE\r\n'
+                         'Max-Forwards: 70\r\n'
+                         'Date: Thu, 21 Feb 2002 13:02:03 GMT\r\n'
+                         'Contact: <sip:alice@pc33.atlanta.com>\r\n'
+                         'Content-Type: application/sdp\r\n'
+                         'Content-Length: 147\r\n'
+                         '\r\n'
+                         'v=0\r\n'
+                         'o=UserA 2890844526 2890844526 IN IP4 here.com\r\n'
+                         's=Session SDP\r\n'
+                         'c=IN IP4 pc33.atlanta.com\r\n'
+                         't=0 0\r\n'
+                         'm=audio 49172 RTP/AVP 0\r\n'
+                         'a=rtpmap:0 PCMU/8000')
+        msg.length = len(self.msg.message.encode('utf-8'))
+
+
+    def setResponseMessage(self, msg):
+        msg.message = ( 'SIP/2.0 181 Call Is Being Forwarded\r\n'
+                        'Via: SIP/2.0/UDP server10.biloxi.com;branch=z9hG4bK4b43c2ff8.1\r\n'
+                        ' ;received=192.0.2.3\r\n'
+                        'Via: SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1\r\n'
+                        ' ;received=192.0.2.2\r\n'
+                        'Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8\r\n'
+                        ' ;received=192.0.2.1\r\n'
+                        'To: Bob <sip:bob@biloxi.com>;tag=a6c85cf\r\n'
+                        'From: Alice <sip:alice@atlanta.com>;tag=1928301774\r\n'
+                        'Call-ID: a84b4c76e66710\r\n'
+                        'Contact: <sip:bob@192.0.2.4>\r\n'
+                        'CSeq: 314159 INVITE\r\n'
+                        'Content-Length: 0\r\n'
+                        '\r\n')
+        msg.length = len(self.msg.message.encode('utf-8'))
+
+    def test_getStatusCode(self):
+        self.setResponseMessage(self.msg)
+        self.assertEqual(181, self.msg.getStatusCode())
+
+    def test_getStatusCodeInRequest(self):
+        self.setRequestMessage(self.msg)
+        self.assertEqual(None, self.msg.getStatusCode())
+
+    def test_getStatusPhrease(self):
+        self.setResponseMessage(self.msg)
+        self.assertEqual('Call Is Being Forwarded', self.msg.getStatusPhrease())
+
+    def test_getStatusPhreaseInRequest(self):
+        self.setRequestMessage(self.msg)
+        self.assertEqual('SIP/2.0', self.msg.getStatusPhrease())
+
+    def test_getMethod(self):
+        self.setRequestMessage(self.msg)
+        self.assertEqual('INVITE', self.msg.getMethod())
+
+    def test_getMethodInResonse(self):
+        self.setResponseMessage(self.msg)
+        self.assertEqual('SIP/2.0', self.msg.getMethod())
+
+    def test_getRequstURI(self):
+        self.setRequestMessage(self.msg)
+        self.assertEqual('sip:bob@biloxi.com', self.msg.getRequstURI())
+
+    def test_getRequstURIInResponse(self):
+        self.setResponseMessage(self.msg)
+        self.assertEqual('181', self.msg.getRequstURI())
+
+    def test_getHeaderValues(self):
+        self.setResponseMessage(self.msg)
+        self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('To')[0])
+        self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('to')[0])
+        self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('tO')[0])
+        self.assertEqual('SIP/2.0/UDP server10.biloxi.com;branch=z9hG4bK4b43c2ff8.1;received=192.0.2.3', self.msg.getHeaderValues('Via')[0])
+
+        self.assertEqual('SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8;received=192.0.2.1', self.msg.getHeaderValues('Via')[2])
+
+    def test_getHeaderValues(self):
+        self.setResponseMessage(self.msg)
+        self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('To')[0])
+        self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('to')[0])
+        self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('tO')[0])
+        self.assertEqual('SIP/2.0/UDP server10.biloxi.com;branch=z9hG4bK4b43c2ff8.1;received=192.0.2.3', self.msg.getHeaderValues('Via')[0])
+
+        self.assertEqual('SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8;received=192.0.2.1', self.msg.getHeaderValues('Via')[2])
+
+
+
+    def test_messagesFilter(self):
+        msg1 = self.createNewMsg()
+        msg1.direction = 'sent'
+        self.setRequestMessage(msg1)
+
+        msg2 = self.createNewMsg()
+        msg2.direction = 'received'
+        self.setResponseMessage(msg2)
+
+        msg3 = self.createNewMsg()
+        msg3.direction = 'received'
+        self.setResponseMessage(msg3)
+
+        messages = [msg1, msg2, msg3]
+
+        new_messages = SIPpMessage.messagesFilter(messages, method='INVITE')
+        self.assertEqual(len(new_messages), 1)
+        self.assertEqual(new_messages[0].getMethod(), 'INVITE')
+
+        new_messages = SIPpMessage.messagesFilter(messages, method='BYE')
+        self.assertEqual(len(new_messages), 0)
+
+        new_messages = SIPpMessage.messagesFilter(messages, direction='sent')
+        self.assertEqual(len(new_messages), 1)
+        self.assertEqual(new_messages[0].getMethod(), 'INVITE')
+
+        new_messages = SIPpMessage.messagesFilter(messages, direction='received')
+        self.assertEqual(len(new_messages), 2)
+        self.assertEqual(new_messages[0].getStatusCode(), 181)
+        self.assertEqual(new_messages[1].getStatusCode(), 181)
+
+        new_messages = SIPpMessage.messagesFilter(messages, status_code=181)
+        self.assertEqual(len(new_messages), 2)
+        self.assertEqual(new_messages[0].getStatusCode(), 181)
+        self.assertEqual(new_messages[1].getStatusCode(), 181)
+
+        new_messages = SIPpMessage.messagesFilter(messages, status_code=180)
+        self.assertEqual(len(new_messages), 0)
 
