@@ -17,6 +17,7 @@ class SIPp():
         logfile_path = kwargs.get('logfile_path', None)
         injection_file = kwargs.get('injection_file', None)
         embedded_scenario = kwargs.get('embedded_scenario', None)
+        bind_sip_addr = kwargs.get('bind_sip_addr', None)
         count = kwargs.get('count', 1)
 
         # create sipp command line
@@ -33,6 +34,9 @@ class SIPp():
         if duration_msec:
             command.append('-d')
             command.append(str(duration_msec))
+        if bind_sip_addr:
+            command.append('-i')
+            command.append(str(bind_sip_addr))
         if logfile_path:
             command.append('-trace_msg')
             command.append('-message_file')
@@ -175,6 +179,7 @@ class TestSIPp(unittest.TestCase):
         self.assertNotIn('-inf ', command)
         self.assertNotIn('-s ', command)
         self.assertNotIn('-d ', command)
+        self.assertNotIn('-i ', command)
         self.assertNotIn('-trace_msg ', command)
         self.assertNotIn('-message_file ', command)
         self.assertIn('-m 1 ', command)
@@ -192,6 +197,10 @@ class TestSIPp(unittest.TestCase):
     def test_helper_run_a_sipp_inf_options(self):
         ret, command = SIPp.helper_run_a_sipp(injection_file='/dev/null')
         self.assertIn('-inf /dev/null', command)
+
+    def test_helper_run_a_sipp_i_options(self):
+        ret, command = SIPp.helper_run_a_sipp(bind_sip_addr='127.0.0.1')
+        self.assertIn('-i 127.0.0.1 ', command)
 
     def test_helper_run_a_sipp_s_options(self):
         ret, command = SIPp.helper_run_a_sipp(request_service='service')
