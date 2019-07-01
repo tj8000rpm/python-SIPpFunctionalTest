@@ -67,12 +67,31 @@ class SIPp():
 
         # append in front timeout command
         runnable = ['timeout', str(timeout_s)] + command
-
         # execute sipp program with headless mode
         ret = subprocess.run(runnable, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # return value of subprocess results and executed command line
         return ret, " ".join(command)
+
+    @staticmethod
+    def helper_create_injection(mode="SEQUENTIAL",
+                                printf=None, printfmultiple=None, printfoffset=None,
+                                content=None):
+        if not printf and (printfmultiple or printfoffset):
+            return None
+
+        return_str=str(mode)
+        if printf:
+            return_str+=',PRINTF={}'.format(str(printf))
+        if printfmultiple:
+            return_str+=',PRINTFMULTIPLE={}'.format(str(printfmultiple))
+        if printfoffset:
+            return_str+=',PRINTFOFFSET={}'.format(str(printfoffset))
+        return_str+="\n"
+        if content:
+            for a_line in content:
+                return_str+=";".join(a_line)+"\n"
+        return return_str.strip()
 
 class SIPpMessage():
     message = ''
@@ -139,9 +158,11 @@ class SIPpMessage():
     @staticmethod
     def parseMessagesFromLogfile(filepath):
         #'----------------------------------------------- 2019-06-29 19:42:16.839845'
-        re_delim_and_timestamp=re.compile(r'^-[-]+ ([\d]{4}-[\d]{2}-[\d]{2}) ([\d]{2}:[\d]{2}:[\d]{2}\.[\d]{6}).*$')
+        re_delim_and_timestamp=re.compile(r'^-[-]+ ([\d]{4}-[\d]{2}-[\d]{2}) '
+                                           '([\d]{2}:[\d]{2}:[\d]{2}\.[\d]{6}).*$')
         #'UDP message sent (442 bytes):'
-        re_message_protocol=re.compile(r'^(UDP|TCP|SCTP) message (sent|received) [^\d]*([\d]+)[^\d]*bytes.*$')
+        re_message_protocol=re.compile(r'^(UDP|TCP|SCTP) message (sent|received) '
+                                        '[^\d]*([\d]+)[^\d]*bytes.*$')
 
         messages = []
         pointer=None
@@ -155,7 +176,8 @@ class SIPpMessage():
                     date = match_deli.group(1)
                     time = match_deli.group(2)
                     obj = SIPpMessage()
-                    obj.datetime = datetime.strptime('{} {}'.format(date, time), "%Y-%m-%d %H:%M:%S.%f")
+                    obj.datetime = datetime.strptime('{} {}'.format(date, time), 
+                                                     "%Y-%m-%d %H:%M:%S.%f")
 
                     messages.append(obj)
                     pointer=messages[-1]
@@ -259,6 +281,72 @@ class TestSIPp(unittest.TestCase):
         ret, command = SIPp.helper_run_a_sipp(timeout_s=0.000001)
         self.assertEqual(ret.returncode, 124)
 
+    def test_helper_create_injection_sequential(self):
+        injection_content=[
+            ["tst1234","example.com","192.168.0.1",
+                "pass%04d","[authentication username=joe password=schmo]"],
+            ["tst4321","example.com","192.168.0.2",
+                "pass%04d","[authentication username=john password=smith]"]
+        ]
+        filecontent_str = SIPp.helper_create_injection(mode='SEQUENTIAL', content=injection_content)
+        contents = filecontent_str.split('\n')
+        self.assertEqual(len(contents), 3)
+        self.assertEqual(contents[0], 'SEQUENTIAL')
+        self.assertEqual(contents[1], 'tst1234;example.com;192.168.0.1;'
+                'pass%04d;[authentication username=joe password=schmo]')
+        self.assertEqual(contents[2], 'tst4321;example.com;192.168.0.2;'
+                'pass%04d;[authentication username=john password=smith]')
+
+    def test_helper_create_injection_random(self):
+        filecontent_str = SIPp.helper_create_injection(mode='RANDOM')
+        contents = filecontent_str.split('\n')
+        self.assertEqual(len(contents), 1)
+        self.assertEqual(contents[0], 'RANDOM')
+
+    def test_helper_create_injection_users(self):
+        filecontent_str = SIPp.helper_create_injection(mode='USERS')
+        contents = filecontent_str.split('\n')
+        self.assertEqual(len(contents), 1)
+        self.assertEqual(contents[0], 'USERS')
+
+    def test_helper_create_injection_printf(self):
+        filecontent_str = SIPp.helper_create_injection(mode='USERS', printf=4)
+        contents = filecontent_str.split('\n')
+        self.assertEqual(len(contents), 1)
+        self.assertEqual(contents[0], 'USERS,PRINTF=4')
+
+    def test_helper_create_injection_printfmultiple(self):
+        filecontent_str = SIPp.helper_create_injection(mode='USERS', printf=4, printfmultiple=2)
+        contents = filecontent_str.split('\n')
+        self.assertEqual(len(contents), 1)
+        self.assertEqual(contents[0], 'USERS,PRINTF=4,PRINTFMULTIPLE=2')
+
+    def test_helper_create_injection_printfoffset(self):
+        filecontent_str = SIPp.helper_create_injection(mode='USERS', printf=4, printfoffset=10)
+        contents = filecontent_str.split('\n')
+        self.assertEqual(len(contents), 1)
+        self.assertEqual(contents[0], 'USERS,PRINTF=4,PRINTFOFFSET=10')
+
+    def test_helper_create_injection_printfmultipleoffset(self):
+        filecontent_str = SIPp.helper_create_injection(mode='USERS', 
+                                                       printf=4, printfmultiple=2, printfoffset=10)
+        contents = filecontent_str.split('\n')
+        self.assertEqual(len(contents), 1)
+        self.assertEqual(contents[0], 'USERS,PRINTF=4,PRINTFMULTIPLE=2,PRINTFOFFSET=10')
+
+    def test_helper_create_injection_multiple(self):
+        filecontent_str = SIPp.helper_create_injection(mode='SEQUENTIAL', printfmultiple=10)
+        self.assertEqual(None, filecontent_str)
+
+    def test_helper_create_injection_offset(self):
+        filecontent_str = SIPp.helper_create_injection(mode='sequential', printfoffset=10)
+        self.assertEqual(None, filecontent_str)
+
+    def test_helper_create_injection_multipleoffset(self):
+        filecontent_str = SIPp.helper_create_injection(mode='SEQUENTIAL', 
+                                                       printfmultiple=10, printfoffset=10)
+        self.assertEqual(None, filecontent_str)
+
 class TestSIPpMessage(unittest.TestCase):
     def createNewMsg(self):
         msg = SIPpMessage()
@@ -297,7 +385,8 @@ class TestSIPpMessage(unittest.TestCase):
         msg.message = ( 'SIP/2.0 181 Call Is Being Forwarded\r\n'
                         'Via: SIP/2.0/UDP server10.biloxi.com;branch=z9hG4bK4b43c2ff8.1\r\n'
                         ' ;received=192.0.2.3\r\n'
-                        'Via: SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1\r\n'
+                        'Via: SIP/2.0/UDP bigbox3.site3.atlanta.com;' # this line is not broken
+                                                         'branch=z9hG4bK77ef4c2312983.1\r\n'
                         ' ;received=192.0.2.2\r\n'
                         'Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8\r\n'
                         ' ;received=192.0.2.1\r\n'
@@ -347,8 +436,12 @@ class TestSIPpMessage(unittest.TestCase):
         self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('To')[0])
         self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('to')[0])
         self.assertEqual('Bob <sip:bob@biloxi.com>;tag=a6c85cf', self.msg.getHeaderValues('tO')[0])
-        self.assertEqual('SIP/2.0/UDP server10.biloxi.com;branch=z9hG4bK4b43c2ff8.1;received=192.0.2.3', self.msg.getHeaderValues('Via')[0])
-        self.assertEqual('SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8;received=192.0.2.1', self.msg.getHeaderValues('Via')[2])
+        self.assertEqual('SIP/2.0/UDP server10.biloxi.com;'
+                         'branch=z9hG4bK4b43c2ff8.1;received=192.0.2.3',
+                         self.msg.getHeaderValues('Via')[0])
+        self.assertEqual('SIP/2.0/UDP pc33.atlanta.com;'
+                         'branch=z9hG4bKnashds8;received=192.0.2.1',
+                         self.msg.getHeaderValues('Via')[2])
 
     def test_messagesFilter(self):
         msg1 = self.createNewMsg()
