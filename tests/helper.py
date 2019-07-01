@@ -20,6 +20,8 @@ class SIPp():
         bind_sip_addr = kwargs.get('bind_sip_addr', None)
         bind_sip_port = kwargs.get('bind_sip_port', None)
         bind_media_addr = kwargs.get('bind_media_addr', None)
+        bind_media_port = kwargs.get('bind_media_port', None)
+        call_rate = kwargs.get('call_rate', None)
         count = kwargs.get('count', 1)
 
         # create sipp command line
@@ -45,6 +47,9 @@ class SIPp():
         if bind_media_addr:
             command.append('-mi')
             command.append(str(bind_media_addr))
+        if bind_media_port:
+            command.append('-mp')
+            command.append(str(bind_media_port))
         if logfile_path:
             command.append('-trace_msg')
             command.append('-message_file')
@@ -52,6 +57,9 @@ class SIPp():
         if embedded_scenario:
             command.append('-sn')
             command.append(str(embedded_scenario))
+        if call_rate:
+            command.append('-r')
+            command.append(str(call_rate))
         if count:
             command.append('-m')
             command.append(str(count))
@@ -190,6 +198,7 @@ class TestSIPp(unittest.TestCase):
         self.assertNotIn('-i ', command)
         self.assertNotIn('-p ', command)
         self.assertNotIn('-mi ', command)
+        self.assertNotIn('-mp ', command)
         self.assertNotIn('-trace_msg ', command)
         self.assertNotIn('-message_file ', command)
         self.assertIn('-m 1 ', command)
@@ -220,6 +229,10 @@ class TestSIPp(unittest.TestCase):
         ret, command = SIPp.helper_run_a_sipp(bind_media_addr='127.0.0.1')
         self.assertIn('-mi 127.0.0.1 ', command)
 
+    def test_helper_run_a_sipp_mp_options(self):
+        ret, command = SIPp.helper_run_a_sipp(bind_media_port=60600)
+        self.assertIn('-mp 60600 ', command)
+
     def test_helper_run_a_sipp_s_options(self):
         ret, command = SIPp.helper_run_a_sipp(request_service='service')
         self.assertIn('-s service ', command)
@@ -233,6 +246,10 @@ class TestSIPp(unittest.TestCase):
         self.assertIn('-trace_msg ', command)
         self.assertIn('-message_file /dev/null ', command)
         self.assertIn('-m 1 ', command)
+
+    def test_helper_run_a_sipp_r_options(self):
+        ret, command = SIPp.helper_run_a_sipp(call_rate=10)
+        self.assertIn('-r 10', command)
 
     def test_helper_run_a_sipp_m_options(self):
         ret, command = SIPp.helper_run_a_sipp(count=20)
