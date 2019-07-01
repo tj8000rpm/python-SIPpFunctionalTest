@@ -3,6 +3,8 @@ import re
 import subprocess
 import csv
 import unittest
+import uuid
+import os
 from datetime import datetime
 
 class SIPp():
@@ -92,6 +94,11 @@ class SIPp():
             for a_line in content:
                 return_str+=";".join(a_line)+"\n"
         return return_str.strip()
+
+    @staticmethod
+    def helper_write_injection_file(content_as_str, path_to_file):
+        with open(path_to_file, 'w') as f:
+            f.write(content_as_str)
 
 class SIPpMessage():
     message = ''
@@ -346,6 +353,20 @@ class TestSIPp(unittest.TestCase):
         filecontent_str = SIPp.helper_create_injection(mode='SEQUENTIAL', 
                                                        printfmultiple=10, printfoffset=10)
         self.assertEqual(None, filecontent_str)
+
+    def test_helper_write_injection_file(self):
+        content_as_str = 'ACCCDCCCVDYHJKOIHJJKJLK!@#$%12346'
+        path_to_file = './inputs/{}'.format(str(uuid.uuid4()))
+        try:
+            SIPp.helper_write_injection_file(content_as_str=content_as_str,
+                                             path_to_file=path_to_file)
+            self.assertEqual(os.path.isfile(path_to_file), True)
+            with open(path_to_file) as f:
+                content = f.read()
+            self.assertEqual(content, 'ACCCDCCCVDYHJKOIHJJKJLK!@#$%12346')
+        finally:
+            if os.path.isfile(path_to_file):
+                os.remove(path_to_file)
 
 class TestSIPpMessage(unittest.TestCase):
     def createNewMsg(self):
