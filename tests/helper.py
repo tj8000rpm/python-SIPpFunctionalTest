@@ -16,6 +16,7 @@ class SIPp():
         duration_msec = kwargs.get('duration_msec', None)
         logfile_path = kwargs.get('logfile_path', None)
         injection_file = kwargs.get('injection_file', None)
+        embedded_scenario = kwargs.get('embedded_scenario', None)
         count = kwargs.get('count', 1)
 
         # create sipp command line
@@ -36,6 +37,9 @@ class SIPp():
             command.append('-trace_msg')
             command.append('-message_file')
             command.append(str(logfile_path))
+        if embedded_scenario:
+            command.append('-sn')
+            command.append(str(embedded_scenario))
         if count:
             command.append('-m')
             command.append(str(count))
@@ -167,6 +171,7 @@ class TestSIPp(unittest.TestCase):
         self.assertRegex(command, r'^sipp')
         self.assertRegex(command, 'localhost')
         self.assertNotIn('-sf ', command)
+        self.assertNotIn('-sn ', command)
         self.assertNotIn('-inf ', command)
         self.assertNotIn('-s ', command)
         self.assertNotIn('-d ', command)
@@ -179,71 +184,31 @@ class TestSIPp(unittest.TestCase):
         self.assertRegex(command, r'^sipp')
         self.assertRegex(command, 'localhost')
         self.assertIn('-sf /dev/null', command)
-        self.assertNotIn('-inf ', command)
-        self.assertNotIn('-s ', command)
-        self.assertNotIn('-d ', command)
-        self.assertNotIn('-trace_msg ', command)
-        self.assertNotIn('-message_file ', command)
-        self.assertIn('-m 1 ', command)
+
+    def test_helper_run_a_sipp_sn_options(self):
+        ret, command = SIPp.helper_run_a_sipp(embedded_scenario='hoge')
+        self.assertIn('-sn hoge', command)
 
     def test_helper_run_a_sipp_inf_options(self):
         ret, command = SIPp.helper_run_a_sipp(injection_file='/dev/null')
-        self.assertRegex(command, r'^sipp')
-        self.assertRegex(command, 'localhost')
-        self.assertNotIn('-sf ', command)
         self.assertIn('-inf /dev/null', command)
-        self.assertNotIn('-s ', command)
-        self.assertNotIn('-d ', command)
-        self.assertNotIn('-trace_msg ', command)
-        self.assertNotIn('-message_file ', command)
-        self.assertIn('-m 1 ', command)
 
     def test_helper_run_a_sipp_s_options(self):
         ret, command = SIPp.helper_run_a_sipp(request_service='service')
-        self.assertRegex(command, r'^sipp')
-        self.assertRegex(command, 'localhost')
-        self.assertNotIn('-sf ', command)
-        self.assertNotIn('-inf ', command)
         self.assertIn('-s service ', command)
-        self.assertNotIn('-d ', command)
-        self.assertNotIn('-trace_msg ', command)
-        self.assertNotIn('-message_file ', command)
-        self.assertIn('-m 1 ', command)
 
     def test_helper_run_a_sipp_d_options(self):
         ret, command = SIPp.helper_run_a_sipp(duration_msec=10)
-        self.assertRegex(command, r'^sipp')
-        self.assertRegex(command, 'localhost')
-        self.assertNotIn('-sf ', command)
-        self.assertNotIn('-inf ', command)
-        self.assertNotIn('-s ', command)
         self.assertIn('-d 10', command)
-        self.assertNotIn('-trace_msg ', command)
-        self.assertNotIn('-message_file ', command)
-        self.assertIn('-m 1 ', command)
 
     def test_helper_run_a_sipp_message_file_options(self):
         ret, command = SIPp.helper_run_a_sipp(logfile_path='/dev/null')
-        self.assertRegex(command, r'^sipp')
-        self.assertRegex(command, 'localhost')
-        self.assertNotIn('-sf ', command)
-        self.assertNotIn('-inf ', command)
-        self.assertNotIn('-s ', command)
-        self.assertNotIn('-d ', command)
         self.assertIn('-trace_msg ', command)
         self.assertIn('-message_file /dev/null ', command)
         self.assertIn('-m 1 ', command)
 
     def test_helper_run_a_sipp_m_options(self):
         ret, command = SIPp.helper_run_a_sipp(count=20)
-        self.assertRegex(command, r'^sipp')
-        self.assertRegex(command, 'localhost')
-        self.assertNotIn('-sf ', command)
-        self.assertNotIn('-inf ', command)
-        self.assertNotIn('-s ', command)
-        self.assertNotIn('-d ', command)
-        self.assertNotIn('-trace_msg ', command)
-        self.assertNotIn('-message_file ', command)
         self.assertIn('-m 20 ', command)
 
     def test_helper_run_a_sipp_timeout(self):

@@ -9,7 +9,7 @@ class TestCase1SipBasicTest(unittest.TestCase):
     def tearDown(self):
         # delete sip message log
         if os.path.isfile(self.logfile):
-            os.remove(self.logfile)
+            #os.remove(self.logfile)
             pass
 
     def helper_run_sipp_test_case_1(self):
