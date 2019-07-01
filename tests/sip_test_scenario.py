@@ -4,16 +4,20 @@ import unittest
 import inspect
 from .helper import SIPpMessage, SIPp
 
-class TestCase1SipBasicTest(unittest.TestCase):
-
+class MyAbstractBaseTestcase(unittest.TestCase):
+    ''' The class to share the tearDown process
+    '''
     def tearDown(self):
         # delete sip message log
         if os.path.isfile(self.logfile):
             os.remove(self.logfile)
             pass
+        # delete sipp injection file
         if os.path.isfile(self.injectionfile):
             os.remove(self.injectionfile)
             pass
+
+class TestCase1SipBasicTest(MyAbstractBaseTestcase):
 
     def helper_run_sipp_test_case_1(self):
         # run a sipp scenario
@@ -47,13 +51,11 @@ class TestCase1SipBasicTest(unittest.TestCase):
         self.injectionfile = '{}/inputs/inf_{}.csv'.format(os.getcwd(), inspect.currentframe().f_code.co_name)
         SIPp.helper_write_injection_file(SIPp.helper_create_injection(content=[['user1', 'Joe']]),
                                          path_to_file=self.injectionfile)
-
         # run test csae 1 sipp scenario
         self.helper_run_sipp_test_case_1()
 
         # check sip message
         messages = SIPpMessage.parseMessagesFromLogfile(self.logfile)
-
         # separate message by recived and sent
         messages_r = SIPpMessage.messagesFilter(messages, direction='received')
         messages_s = SIPpMessage.messagesFilter(messages, direction='sent')
@@ -61,7 +63,6 @@ class TestCase1SipBasicTest(unittest.TestCase):
         # get first invite message and recived 180 Ringing message
         first_invite = SIPpMessage.messagesFilter(messages_s, method='INVITE')[0]
         ringing_msg = SIPpMessage.messagesFilter(messages_r, status_code=180)[0]
-
         # get from header values from invite and ringing message
         from_header_sent = first_invite.getHeaderValues('from')[0]
         from_header_recv = ringing_msg.getHeaderValues('from')[0]
@@ -76,13 +77,11 @@ class TestCase1SipBasicTest(unittest.TestCase):
         self.injectionfile = '{}/inputs/inf_{}.csv'.format(os.getcwd(), inspect.currentframe().f_code.co_name)
         SIPp.helper_write_injection_file(SIPp.helper_create_injection(content=[['user1', 'Joe']]),
                                          path_to_file=self.injectionfile)
-
         # run test csae 1 sipp scenario
         self.helper_run_sipp_test_case_1()
 
         # check sip message
         messages = SIPpMessage.parseMessagesFromLogfile(self.logfile)
-
         # separate message by recived and sent
         messages_r = SIPpMessage.messagesFilter(messages, direction='received')
         messages_s = SIPpMessage.messagesFilter(messages, direction='sent')
@@ -90,7 +89,6 @@ class TestCase1SipBasicTest(unittest.TestCase):
         # get first invite message and recived 180 Ringing message
         first_invite = SIPpMessage.messagesFilter(messages_s, method='INVITE')[0]
         ringing_msg = SIPpMessage.messagesFilter(messages_r, status_code=180)[0]
-
         # get to header values from invite and ringing message
         to_header_sent = first_invite.getHeaderValues('to')[0]
         to_header_recv = ringing_msg.getHeaderValues('to')[0]
@@ -99,16 +97,7 @@ class TestCase1SipBasicTest(unittest.TestCase):
         self.assertNotRegex(to_header_sent, r';[\s]*tag[\s]*=[\s]*', 'to tag must be NOT included.')
         self.assertRegex(to_header_recv, r';[\s]*tag[\s]*=[\s]*', 'to tag must be included.')
 
-class TestCase2SipErrorTest(unittest.TestCase):
-
-    def tearDown(self):
-        # delete sip message log
-        if os.path.isfile(self.logfile):
-            os.remove(self.logfile)
-            pass
-        if os.path.isfile(self.injectionfile):
-            os.remove(self.injectionfile)
-            pass
+class TestCase2SipErrorTest(MyAbstractBaseTestcase):
 
     def helper_run_sipp_test_case_2(self):
         # run a sipp scenario
@@ -127,7 +116,6 @@ class TestCase2SipErrorTest(unittest.TestCase):
         self.injectionfile = '{}/inputs/inf_{}.csv'.format(os.getcwd(), inspect.currentframe().f_code.co_name)
         SIPp.helper_write_injection_file(SIPp.helper_create_injection(content=[['user2', 'John']]),
                                          path_to_file=self.injectionfile)
-
         # run test csae 1 sipp scenario
         self.helper_run_sipp_test_case_2()
 
